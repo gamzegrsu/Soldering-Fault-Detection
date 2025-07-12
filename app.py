@@ -1,29 +1,37 @@
 import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.models import load_model
-from PIL import Image
 import numpy as np
 
-# Modeli yükle
-model = load_model('model/lehim_hatasi_modeli.keras')
+# TensorFlow sürümünü kontrol et
+st.title("TensorFlow ve Streamlit Test Uygulaması")
+st.write(f"Yüklü TensorFlow sürümü: {tf.__version__}")
 
-# Kullanıcıdan görsel alma
-uploaded_image = st.file_uploader("Lehim hatası resmi yükleyin", type=["jpg", "png", "jpeg"])
+# GPU'nun varlığını kontrol et
+if tf.config.list_physical_devices('GPU'):
+    st.write("GPU cihazı başarıyla algılandı!")
+else:
+    st.write("GPU cihazı bulunamadı, CPU kullanılıyor.")
 
-# Görseli gösterme
-if uploaded_image is not None:
-    image = Image.open(uploaded_image)
-    st.image(image, caption='Yüklenen Görsel', use_column_width=True)
+# Basit bir TensorFlow modelini oluşturma
+st.write("Basit bir TensorFlow modelini test ediyoruz...")
 
-    # Görseli uygun boyuta getirme
-    image = image.resize((224, 224))  # Modelin istediği boyut
-    image = np.array(image) / 255.0   # Normalize etme
-    image = np.expand_dims(image, axis=0)  # Model için uygun şekle getirme
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(1,)),
+    tf.keras.layers.Dense(1)
+])
 
-    # Tahmin yapma
-    prediction = model.predict(image)
-    predicted_class = np.argmax(prediction, axis=1)
+# Kullanıcıdan bir sayı al
+input_value = st.number_input("Bir sayı girin:", min_value=0, max_value=100, value=5)
 
-    # Sınıfları tanımlama (bunlar sizin modelinizin sınıflarına göre değişebilir)
-    class_names = ['CS1', 'CS2', 'CS3', 'CS4', 'CS5', 'CS6', 'CS7']
-    st.write(f"Model Tahmini: {class_names[predicted_class[0]]}")
+# Modeli eğitmek için veri
+x = np.array([[i] for i in range(100)])
+y = np.array([2 * i + 1 for i in range(100)])
+
+model.compile(optimizer='adam', loss='mse')
+
+# Modeli eğit
+if st.button("Modeli Eğit ve Tahmin Et"):
+    model.fit(x, y, epochs=10, verbose=0)
+    prediction = model.predict([[input_value]])[0][0]
+    st.write(f"Model tahmini: {prediction:.2f}")
+
