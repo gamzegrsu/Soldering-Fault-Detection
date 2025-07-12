@@ -1,37 +1,43 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
+import cv2
+from tensorflow.keras.models import load_model
 
-# TensorFlow sürümünü kontrol et
-st.title("TensorFlow ve Streamlit Test Uygulaması")
-st.write(f"Yüklü TensorFlow sürümü: {tf.__version__}")
+# Model ve sınıf bilgisi
+model = load_model("lehim_hatasi_modeli.keras")
+class_names = ["soğuk_lehim", "eksik_lehim", "köprü", "aşırı_lehim", "lehım_çatlağı"]
+cozum_onerileri = {
+    "soğuk_lehim": "Lehimleme süresini artır. Havya ucunu temizle.",
+    "eksik_lehim": "Lehim miktarını artır. Yüzey temizliğini kontrol et.",
+    "köprü": "Aşırı lehimi temizle. Bileşenleri hizala.",
+    "aşırı_lehim": "Daha az lehim kullan. Havya ile fazlalığı çek.",
+    "lehım_çatlağı": "Termal stres kaynaklarını kontrol et. Yeniden lehimle."
+}
 
-# GPU'nun varlığını kontrol et
-if tf.config.list_physical_devices('GPU'):
-    st.write("GPU cihazı başarıyla algılandı!")
-else:
-    st.write("GPU cihazı bulunamadı, CPU kullanılıyor.")
+# Başlık
+st.title("🔧 Lehimleme Hatası Tespiti ve Çözüm Önerisi")
 
-# Basit bir TensorFlow modelini oluşturma
-st.write("Basit bir TensorFlow modelini test ediyoruz...")
+# Görsel yükleme
+uploaded_file = st.file_uploader("📤 Lütfen bir PCB görseli yükleyin", type=["jpg", "jpeg", "png"])
 
-model = tf.keras.Sequential([
-    tf.keras.layers.Dense(64, activation='relu', input_shape=(1,)),
-    tf.keras.layers.Dense(1)
-])
+if uploaded_file:
+    # Görseli oku ve göster
+    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+    image = cv2.imdecode(file_bytes, 1)
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    st.image(image_rgb, caption="Yüklenen Görsel", use_column_width=True)
 
-# Kullanıcıdan bir sayı al
-input_value = st.number_input("Bir sayı girin:", min_value=0, max_value=100, value=5)
+    # Görseli modele uygun boyuta getir
+    resized = cv2.resize(image_rgb, (224, 224)) / 255.0
+    input_data = np.expand_dims(resized, axis=0)
 
-# Modeli eğitmek için veri
-x = np.array([[i] for i in range(100)])
-y = np.array([2 * i + 1 for i in range(100)])
+    # Tahmin yap
+    prediction = model.predict(input_data)[0]
+    predicted_index = np.argmax(prediction)
+    predicted_class = class_names[predicted_index]
+    confidence = prediction[predicted_index] * 100
 
-model.compile(optimizer='adam', loss='mse')
-
-# Modeli eğit
-if st.button("Modeli Eğit ve Tahmin Et"):
-    model.fit(x, y, epochs=10, verbose=0)
-    prediction = model.predict([[input_value]])[0][0]
-    st.write(f"Model tahmini: {prediction:.2f}")
+    # Sonuçları yazdır
+    st.markdown(f"### 🔍 Tahmin Edilen Hata: `{predicted_class}` ({confidence:.2f}%)")
+    st.markdown(f"### 💡 Çözüm Önerisi:\n{cozum_onerileri[predicted_class]}")
 
