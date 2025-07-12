@@ -1,5 +1,5 @@
 streamlit
-tensorflow
 numpy
-opencv-python
 pillow
+opencv-python-headless
+tensorflow==2.13.0  # veya desteklenen son sürüm, ama 3.13 sorun yaratabilir
