@@ -1,54 +1,29 @@
 import streamlit as st
-import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import load_model
+from PIL import Image
 import numpy as np
-import joblib
-
-# Streamlit ayarları
-st.set_page_config(page_title="Siber Güvenlik Tahmin", layout="centered")
-st.title("🛡️ Siber Güvenlik Saldırısı Tahmin Aracı")
-st.markdown("🎯 Gerçek zamanlı olarak farklı modellerle siber saldırı tahmini yapın.")
-
-# Model seçimi
-model_option = st.selectbox(
-    "🔍 Tahmin İçin Model Seç:",
-    ("XGBoost", "Random Forest", "KNN", "Logistic Regression")
-)
 
 # Modeli yükle
-model_map = {
-    "XGBoost": "xgb_model.pkl",
-    "Random Forest": "rf_model.pkl",
-    "KNN": "knn_model.pkl",
-    "Logistic Regression": "lr_model.pkl"
-}
-model = joblib.load(model_map[model_option])
+model = load_model('model/lehim_hatasi_modeli.keras')
 
-st.subheader("📥 Girdi Verilerini Girin:")
+# Kullanıcıdan görsel alma
+uploaded_image = st.file_uploader("Lehim hatası resmi yükleyin", type=["jpg", "png", "jpeg"])
 
-# Örnek özellikler (senin veri setine göre özelleştir!)
-# Aşağıdakileri kendi veri sütunlarına göre güncelleyebilirsin
-feature1 = st.slider("Paket Boyutu", 0, 1500, 500)
-feature2 = st.slider("Bağlantı Süresi (ms)", 0, 10000, 200)
-feature3 = st.slider("Bayt Hızı", 0.0, 1000.0, 300.0)
-feature4 = st.slider("Kaynak Port", 0, 65535, 80)
+# Görseli gösterme
+if uploaded_image is not None:
+    image = Image.open(uploaded_image)
+    st.image(image, caption='Yüklenen Görsel', use_column_width=True)
 
-# Özellikleri tek satır haline getir
-features = np.array([[feature1, feature2, feature3, feature4]])
+    # Görseli uygun boyuta getirme
+    image = image.resize((224, 224))  # Modelin istediği boyut
+    image = np.array(image) / 255.0   # Normalize etme
+    image = np.expand_dims(image, axis=0)  # Model için uygun şekle getirme
 
-# Tahmin
-if st.button("🔮 Tahmin Et"):
-    prediction = model.predict(features)[0]
-    prob = model.predict_proba(features)[0]
+    # Tahmin yapma
+    prediction = model.predict(image)
+    predicted_class = np.argmax(prediction, axis=1)
 
-    st.success(f"📌 Model Tahmini: **{prediction}**")
-    st.info(f"📊 Güven Skoru: %{np.max(prob)*100:.2f}")
-
-    st.markdown("---")
-    st.caption("🔁 Model: {}".format(model_option))
-
-# Footer
-st.markdown("""
----
-🧠 Bu uygulama, dört farklı makine öğrenmesi modelini karşılaştırmalı olarak kullanarak canlı tahmin yapmanızı sağlar.
-💡 Not: Tahminlerin doğruluğu modelin eğitim verisine bağlıdır.
-""")
+    # Sınıfları tanımlama (bunlar sizin modelinizin sınıflarına göre değişebilir)
+    class_names = ['CS1', 'CS2', 'CS3', 'CS4', 'CS5', 'CS6', 'CS7']
+    st.write(f"Model Tahmini: {class_names[predicted_class[0]]}")
