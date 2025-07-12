@@ -2,9 +2,12 @@ import streamlit as st
 import numpy as np
 import cv2
 from tensorflow.keras.models import load_model
+from PIL import Image
 
-# Model ve sınıf bilgisi
+# Modeli yükle
 model = load_model("lehim_hatasi_modeli.keras")
+
+# Sınıf isimleri ve çözüm önerileri
 class_names = ["soğuk_lehim", "eksik_lehim", "köprü", "aşırı_lehim", "lehım_çatlağı"]
 cozum_onerileri = {
     "soğuk_lehim": "Lehimleme süresini artır. Havya ucunu temizle.",
@@ -14,30 +17,27 @@ cozum_onerileri = {
     "lehım_çatlağı": "Termal stres kaynaklarını kontrol et. Yeniden lehimle."
 }
 
-# Başlık
-st.title("🔧 Lehimleme Hatası Tespiti ve Çözüm Önerisi")
+# Streamlit Arayüzü
+st.title("🔧 Lehimleme Hatası Tespiti")
+st.markdown("Bir PCB görseli yükleyin, model hatayı tahmin etsin ve çözüm önerisi sunsun.")
 
-# Görsel yükleme
-uploaded_file = st.file_uploader("📤 Lütfen bir PCB görseli yükleyin", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("📤 Görsel yükle (.jpg, .png)", type=["jpg", "jpeg", "png"])
 
-if uploaded_file:
-    # Görseli oku ve göster
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    image = cv2.imdecode(file_bytes, 1)
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    st.image(image_rgb, caption="Yüklenen Görsel", use_column_width=True)
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Yüklenen Görsel", use_column_width=True)
 
-    # Görseli modele uygun boyuta getir
-    resized = cv2.resize(image_rgb, (224, 224)) / 255.0
-    input_data = np.expand_dims(resized, axis=0)
+    # Görseli modele uygun hale getir
+    img_resized = image.resize((224, 224))
+    img_array = np.array(img_resized) / 255.0
+    input_tensor = np.expand_dims(img_array, axis=0)
 
-    # Tahmin yap
-    prediction = model.predict(input_data)[0]
+    # Tahmin
+    prediction = model.predict(input_tensor)[0]
     predicted_index = np.argmax(prediction)
     predicted_class = class_names[predicted_index]
     confidence = prediction[predicted_index] * 100
 
-    # Sonuçları yazdır
-    st.markdown(f"### 🔍 Tahmin Edilen Hata: `{predicted_class}` ({confidence:.2f}%)")
-    st.markdown(f"### 💡 Çözüm Önerisi:\n{cozum_onerileri[predicted_class]}")
-
+    # Sonuç
+    st.markdown(f"### 🔍 Tahmin: `{predicted_class}` (%{confidence:.2f} güven)")
+    st.markdown(f"### 💡 Öneri: {cozum_onerileri[predicted_class]}")
